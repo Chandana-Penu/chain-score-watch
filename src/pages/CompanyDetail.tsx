@@ -1,145 +1,225 @@
-import { useParams } from "react-router-dom";
-import { Building2, MapPin, Users, TrendingUp, Globe, Phone, Mail } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Badge } from "@/components/ui/badge";
-import { CompanyCard } from "@/components/common/CompanyCard";
 
-// Mock data for company details and suppliers
-const companyDetails = {
-  apple: {
-    id: "apple",
-    name: "Apple Inc.",
-    category: "Technology",
-    location: "Cupertino, CA",
-    employeeCount: 164000,
-    revenue: "$394.3B",
-    description: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide.",
-    website: "apple.com",
-    phone: "+1-408-996-1010",
-    email: "investor_relations@apple.com",
-    riskScore: 25,
-    suppliers: [
-      { id: "foxconn", name: "Foxconn Technology", category: "Manufacturing", location: "Taiwan", riskScore: 45, description: "Major electronics manufacturer and Apple's primary assembly partner." },
-      { id: "tsmc", name: "Taiwan Semiconductor", category: "Semiconductors", location: "Taiwan", riskScore: 30, description: "World's largest semiconductor foundry, produces Apple's custom chips." },
-      { id: "lg-display", name: "LG Display", category: "Displays", location: "South Korea", riskScore: 35, description: "Major display panel manufacturer for Apple devices." },
-      { id: "corning", name: "Corning Inc.", category: "Materials", location: "New York, USA", riskScore: 20, description: "Produces specialty glass for Apple devices including Gorilla Glass." },
-    ]
-  },
-  microsoft: {
-    id: "microsoft",
-    name: "Microsoft Corporation",
-    category: "Technology", 
-    location: "Redmond, WA",
-    employeeCount: 221000,
-    revenue: "$211.9B",
-    description: "Microsoft Corporation develops and supports software, services, devices and solutions worldwide.",
-    website: "microsoft.com",
-    phone: "+1-425-882-8080",
-    email: "msft@microsoft.com",
-    riskScore: 18,
-    suppliers: [
-      { id: "intel", name: "Intel Corporation", category: "Semiconductors", location: "California, USA", riskScore: 25, description: "Major processor manufacturer for Microsoft Surface devices." },
-      { id: "amd", name: "Advanced Micro Devices", category: "Semiconductors", location: "California, USA", riskScore: 30, description: "Provides processors for Xbox gaming consoles." },
-      { id: "samsung", name: "Samsung Electronics", category: "Electronics", location: "South Korea", riskScore: 28, description: "Supplies memory and storage components." },
-    ]
-  },
-  // Add more mock data as needed
-};
+import { useLocation } from "react-router-dom";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
 export default function CompanyDetail() {
-  const { companyId } = useParams<{ companyId: string }>();
-  const company = companyId ? companyDetails[companyId as keyof typeof companyDetails] : null;
+  const location = useLocation();
+  const { state } = location;
+  const companyDataArray = state?.companyData;
 
-  if (!company) {
-    return (
-      <div className="flex items-center justify-center h-64">
-        <div className="text-center">
-          <h2 className="text-2xl font-semibold text-corporate-gray">Company Not Found</h2>
-          <p className="text-muted-foreground mt-2">The requested company information is not available.</p>
-        </div>
-      </div>
-    );
+  if (!companyDataArray || !Array.isArray(companyDataArray)) {
+    return <div className="p-8 text-center">No company data found.</div>;
+  }
+
+  // Use the first object from the array
+  const companyData = companyDataArray[0];
+
+  if (!companyData) {
+    return <div className="p-8 text-center">No company data found.</div>;
+  }
+
+  // Parse Web_Traffic data (JSON string or object)
+  type WebTrafficType = {
+    title?: string;
+    pohi_score?: number;
+    risk_level?: string;
+    recommendation?: string;
+    input_summary?: string;
+  };
+  let webTraffic: WebTrafficType = {};
+  try {
+    if (typeof companyData.Web_Traffic === 'string') {
+      webTraffic = JSON.parse(companyData.Web_Traffic);
+    } else if (typeof companyData.Web_Traffic === 'object') {
+      webTraffic = companyData.Web_Traffic;
+    }
+  } catch {
+    webTraffic = {};
+  }
+
+  // Parse News data and extract risk score
+  let newsRiskScore = "";
+  let newsOnePager = "";
+  if (companyData.News) {
+    // Extract risk score from text
+    const riskScoreMatch = companyData.News.match(/Final Risk Score[^:]*:\s*([0-9.]+)/i);
+    if (riskScoreMatch) {
+      newsRiskScore = riskScoreMatch[1];
+    }
+    newsOnePager = companyData.News;
+  }
+
+  // Parse Funding data
+  type FundingMetricType = {
+    metric_name?: string;
+    metric_value?: number;
+    breakdown?: Record<string, number>;
+    rationale?: string;
+  };
+  let fundingMetric: FundingMetricType | null = null;
+  let fundingOnePager = "";
+  
+  if (companyData.Funding) {
+    // Extract one-pager summary from JSON block
+    const onePagerJsonMatch = companyData.Funding.match(/"one_pager_summary":\s*"([^"]*(?:\\.[^"]*)*)"/);
+    if (onePagerJsonMatch) {
+      fundingOnePager = onePagerJsonMatch[1].replace(/\\n/g, '\n').replace(/\\\"/g, '"');
+    }
+    
+    // Extract key risk metric from JSON block
+    const metricJsonMatch = companyData.Funding.match(/"key_risk_metric":\s*({[^}]*(?:{[^}]*}[^}]*)*})/);
+    if (metricJsonMatch) {
+      try {
+        fundingMetric = JSON.parse(metricJsonMatch[1]);
+      } catch {}
+    }
+  }
+
+  // Parse Reviews data and extract risk score
+  let reviewsRiskScore = "";
+  let reviewsOnePager = "";
+  if (companyData.Reviews) {
+    const riskScoreMatch = companyData.Reviews.match(/Final Risk Score:\s*([0-9.]+|N\/A)/i);
+    if (riskScoreMatch) {
+      reviewsRiskScore = riskScoreMatch[1];
+    }
+    reviewsOnePager = companyData.Reviews;
   }
 
   return (
-    <div className="space-y-6">
-      {/* Company Header */}
-      <Card className="bg-gradient-to-r from-primary/5 to-primary/10 border-primary/20">
+    <div className="max-w-6xl mx-auto py-8 space-y-8">
+      {/* Web Traffic & POHI */}
+      <Card>
         <CardHeader>
-          <div className="flex items-start justify-between">
-            <div className="flex items-center gap-4">
-              <div className="h-16 w-16 rounded-xl bg-primary/10 flex items-center justify-center">
-                <Building2 className="h-8 w-8 text-primary" />
+          <CardTitle className="text-2xl flex items-center justify-between">
+            Web Traffic & POHI
+            {webTraffic.pohi_score && (
+              <div className="text-right">
+                <div className="text-3xl font-bold text-orange-600">{webTraffic.pohi_score}</div>
+                <div className="text-sm text-muted-foreground">POHI Score</div>
               </div>
-              <div>
-                <h1 className="text-3xl font-bold text-corporate-gray">{company.name}</h1>
-                <div className="flex items-center gap-2 mt-2">
-                  <Badge variant="secondary">{company.category}</Badge>
-                  <div className="text-sm text-muted-foreground flex items-center gap-4">
-                    <div className="flex items-center gap-1">
-                      <MapPin className="h-3 w-3" />
-                      {company.location}
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <Users className="h-3 w-3" />
-                      {company.employeeCount.toLocaleString()} employees
-                    </div>
-                    <div className="flex items-center gap-1">
-                      <TrendingUp className="h-3 w-3" />
-                      {company.revenue} revenue
-                    </div>
-                  </div>
-                </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <div className="font-semibold mb-2">Risk Level</div>
+              <div className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${
+                webTraffic.risk_level === 'High' ? 'bg-red-100 text-red-700' :
+                webTraffic.risk_level === 'Medium' ? 'bg-yellow-100 text-yellow-700' :
+                'bg-green-100 text-green-700'
+              }`}>
+                {webTraffic.risk_level ?? "N/A"}
               </div>
             </div>
-            
-            <div className="text-right">
-              <div className="text-2xl font-bold text-risk-low">{company.riskScore}/100</div>
-              <div className="text-sm text-risk-low">Low Risk</div>
+            <div>
+              <div className="font-semibold mb-2">Report Title</div>
+              <div className="text-sm">{webTraffic.title ?? "No title available"}</div>
             </div>
           </div>
-        </CardHeader>
-        
-        <CardContent>
-          <p className="text-corporate-gray-light leading-relaxed mb-4">{company.description}</p>
-          
-          <div className="grid grid-cols-3 gap-4 text-sm">
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Globe className="h-4 w-4" />
-              <a href={`https://${company.website}`} className="hover:text-primary transition-colors">
-                {company.website}
-              </a>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Phone className="h-4 w-4" />
-              <span>{company.phone}</span>
-            </div>
-            <div className="flex items-center gap-2 text-muted-foreground">
-              <Mail className="h-4 w-4" />
-              <span>{company.email}</span>
-            </div>
+          <div>
+            <div className="font-semibold mb-2">Recommendation</div>
+            <div className="text-sm bg-blue-50 p-3 rounded">{webTraffic.recommendation ?? "No recommendation available"}</div>
+          </div>
+          <div>
+            <div className="font-semibold mb-2">Summary</div>
+            <div className="text-sm text-muted-foreground">{webTraffic.input_summary ?? "No summary available"}</div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Suppliers Section */}
+      {/* News & Risk Summary */}
       <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <Users className="h-5 w-5" />
-            Key Suppliers ({company.suppliers.length})
+          <CardTitle className="text-2xl flex items-center justify-between">
+            News & Risk Summary
+            {newsRiskScore && (
+              <div className="text-right">
+                <div className="text-3xl font-bold text-red-600">{newsRiskScore}</div>
+                <div className="text-sm text-muted-foreground">Risk Score (0-10)</div>
+              </div>
+            )}
           </CardTitle>
         </CardHeader>
-        
         <CardContent>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {company.suppliers.map((supplier) => (
-              <CompanyCard
-                key={supplier.id}
-                company={supplier}
-                showAnalyzeButton={true}
-              />
-            ))}
+          <div className="bg-gray-50 p-4 rounded">
+            <pre className="whitespace-pre-wrap text-sm">{newsOnePager}</pre>
+          </div>
+        </CardContent>
+      </Card>
+
+      {/* Funding */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center justify-between">
+            Funding Analysis
+            {fundingMetric?.metric_value && (
+              <div className="text-right">
+                <div className="text-3xl font-bold text-purple-600">{fundingMetric.metric_value}</div>
+                <div className="text-sm text-muted-foreground">Funding Score</div>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-4">
+          <div>
+            <div className="font-semibold mb-2">One-Pager Summary</div>
+            <div className="bg-purple-50 p-4 rounded">
+              <pre className="whitespace-pre-wrap text-sm">{fundingOnePager || "No funding summary available"}</pre>
+            </div>
+          </div>
+          {fundingMetric && (
+            <div>
+              <div className="font-semibold mb-2">Key Metrics</div>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <div className="text-sm font-medium">Metric Name</div>
+                  <div className="text-sm">{fundingMetric.metric_name ?? "N/A"}</div>
+                </div>
+                <div>
+                  <div className="text-sm font-medium">Value</div>
+                  <div className="text-sm font-bold">{fundingMetric.metric_value ?? "N/A"}</div>
+                </div>
+              </div>
+              {fundingMetric.breakdown && (
+                <div className="mt-3">
+                  <div className="text-sm font-medium mb-1">Breakdown</div>
+                  <ul className="text-sm space-y-1">
+                    {Object.entries(fundingMetric.breakdown).map(([k, v]) => (
+                      <li key={k} className="flex justify-between">
+                        <span>{k}:</span>
+                        <span className="font-medium">{typeof v === "number" ? v : String(v)}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              <div className="mt-3">
+                <div className="text-sm font-medium">Rationale</div>
+                <div className="text-sm text-muted-foreground">{fundingMetric.rationale ?? "N/A"}</div>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Reviews */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-2xl flex items-center justify-between">
+            Supplier Reviews
+            {reviewsRiskScore && (
+              <div className="text-right">
+                <div className="text-3xl font-bold text-green-600">{reviewsRiskScore}</div>
+                <div className="text-sm text-muted-foreground">Review Score</div>
+              </div>
+            )}
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          <div className="bg-green-50 p-4 rounded">
+            <pre className="whitespace-pre-wrap text-sm">{reviewsOnePager || "No review data available"}</pre>
           </div>
         </CardContent>
       </Card>

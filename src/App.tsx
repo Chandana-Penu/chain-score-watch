@@ -11,7 +11,7 @@ import Index from "./pages/Index";
 import CompanyDetail from "./pages/CompanyDetail";
 import SearchResults from "./pages/SearchResults";
 import NotFound from "./pages/NotFound";
-
+import Cd from "./pages/cd";
 const queryClient = new QueryClient();
 
 const App = () => {
@@ -36,7 +36,8 @@ const App = () => {
                 <main className="flex-1 p-6">
                   <Routes>
                     <Route path="/" element={<Index />} />
-                    <Route path="/company/:companyId" element={<CompanyDetail />} />
+                    <Route path="/company/:companyId" element={<Cd />} />
+                    <Route path="/company-detail" element={<CompanyDetail />} />
                     <Route path="/search" element={<SearchResults />} />
                     {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
                     <Route path="*" element={<NotFound />} />
