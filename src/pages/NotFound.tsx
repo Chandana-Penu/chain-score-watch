@@ -1,5 +1,8 @@
 import { useLocation } from "react-router-dom";
 import { useEffect } from "react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Home, AlertTriangle } from "lucide-react";
 
 const NotFound = () => {
   const location = useLocation();
@@ -12,14 +15,29 @@ const NotFound = () => {
   }, [location.pathname]);
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-100">
-      <div className="text-center">
-        <h1 className="text-4xl font-bold mb-4">404</h1>
-        <p className="text-xl text-gray-600 mb-4">Oops! Page not found</p>
-        <a href="/" className="text-blue-500 hover:text-blue-700 underline">
-          Return to Home
-        </a>
-      </div>
+    <div className="min-h-[60vh] flex items-center justify-center">
+      <Card className="max-w-md w-full mx-4">
+        <CardContent className="p-8 text-center space-y-6">
+          <div className="h-16 w-16 rounded-full bg-destructive/10 flex items-center justify-center mx-auto">
+            <AlertTriangle className="h-8 w-8 text-destructive" />
+          </div>
+          
+          <div className="space-y-2">
+            <h1 className="text-3xl font-bold text-corporate-gray">404</h1>
+            <h2 className="text-xl font-semibold text-corporate-gray">Page Not Found</h2>
+            <p className="text-muted-foreground">
+              The page you're looking for doesn't exist or has been moved.
+            </p>
+          </div>
+
+          <Button asChild className="w-full">
+            <a href="/">
+              <Home className="h-4 w-4 mr-2" />
+              Return to Dashboard
+            </a>
+          </Button>
+        </CardContent>
+      </Card>
     </div>
   );
 };
