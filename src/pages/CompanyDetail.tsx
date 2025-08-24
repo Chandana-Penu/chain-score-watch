@@ -2,6 +2,41 @@
 import { useLocation } from "react-router-dom";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 
+// Simple markdown renderer component
+const MarkdownRenderer = ({ content }: { content: string }) => {
+  // Check if content has markdown formatting
+  const hasMarkdown = /[#*_`-]/.test(content) || content.includes('**') || content.includes('##');
+  
+  if (!hasMarkdown) {
+    return <pre className="whitespace-pre-wrap text-sm">{content}</pre>;
+  }
+
+  // Simple markdown parsing
+  const renderMarkdown = (text: string) => {
+    return text
+      .replace(/^#### (.*$)/gim, '<h4 class="text-base font-medium mb-2 mt-3">$1</h4>')
+      .replace(/^### (.*$)/gim, '<h3 class="text-lg font-semibold mb-2 mt-4">$1</h3>')
+      .replace(/^## (.*$)/gim, '<h2 class="text-xl font-bold mb-3 mt-4">$1</h2>')
+      .replace(/^# (.*$)/gim, '<h1 class="text-2xl font-bold mb-4 mt-4">$1</h1>')
+      .replace(/\*\*(.*?)\*\*/g, '<strong class="font-semibold">$1</strong>')
+      .replace(/\*(.*?)\*/g, '<em class="italic">$1</em>')
+      .replace(/`(.*?)`/g, '<code class="bg-gray-200 px-1 py-0.5 rounded text-sm font-mono">$1</code>')
+      .replace(/^- (.*$)/gim, '<li class="ml-4">• $1</li>')
+      .replace(/^\d+\. (.*$)/gim, '<li class="ml-4">$1</li>')
+      .replace(/\n\n/g, '</p><p class="mb-2">')
+      .replace(/\n/g, '<br/>');
+  };
+
+  return (
+    <div 
+      className="text-sm prose prose-sm max-w-none"
+      dangerouslySetInnerHTML={{ 
+        __html: `<p class="mb-2">${renderMarkdown(content)}</p>` 
+      }} 
+    />
+  );
+};
+
 export default function CompanyDetail() {
   const location = useLocation();
   const { state } = location;
@@ -120,11 +155,15 @@ export default function CompanyDetail() {
           </div>
           <div>
             <div className="font-semibold mb-2">Recommendation</div>
-            <div className="text-sm bg-blue-50 p-3 rounded">{webTraffic.recommendation ?? "No recommendation available"}</div>
+            <div className="text-sm bg-blue-50 p-3 rounded">
+              <MarkdownRenderer content={webTraffic.recommendation ?? "No recommendation available"} />
+            </div>
           </div>
           <div>
             <div className="font-semibold mb-2">Summary</div>
-            <div className="text-sm text-muted-foreground">{webTraffic.input_summary ?? "No summary available"}</div>
+            <div className="text-sm text-muted-foreground">
+              <MarkdownRenderer content={webTraffic.input_summary ?? "No summary available"} />
+            </div>
           </div>
         </CardContent>
       </Card>
@@ -144,7 +183,7 @@ export default function CompanyDetail() {
         </CardHeader>
         <CardContent>
           <div className="bg-gray-50 p-4 rounded">
-            <pre className="whitespace-pre-wrap text-sm">{newsOnePager}</pre>
+            <MarkdownRenderer content={newsOnePager} />
           </div>
         </CardContent>
       </Card>
@@ -166,7 +205,7 @@ export default function CompanyDetail() {
           <div>
             <div className="font-semibold mb-2">One-Pager Summary</div>
             <div className="bg-purple-50 p-4 rounded">
-              <pre className="whitespace-pre-wrap text-sm">{fundingOnePager || "No funding summary available"}</pre>
+              <MarkdownRenderer content={fundingOnePager || "No funding summary available"} />
             </div>
           </div>
           {fundingMetric && (
@@ -219,7 +258,7 @@ export default function CompanyDetail() {
         </CardHeader>
         <CardContent>
           <div className="bg-green-50 p-4 rounded">
-            <pre className="whitespace-pre-wrap text-sm">{reviewsOnePager || "No review data available"}</pre>
+            <MarkdownRenderer content={reviewsOnePager || "No review data available"} />
           </div>
         </CardContent>
       </Card>
