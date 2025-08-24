@@ -1,63 +1,42 @@
 import { useLocation } from "react-router-dom";
+import { useEffect, useState } from "react";
 import { Search, Building2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CompanyCard } from "@/components/common/CompanyCard";
-
-// Mock search results
-const mockSearchResults = [
-  {
-    id: "apple-search",
-    name: "Apple Inc.",
-    category: "Technology",
-    location: "Cupertino, CA",
-    employeeCount: 164000,
-    revenue: "$394.3B",
-    riskScore: 25,
-    description: "Apple Inc. designs, manufactures, and markets smartphones, personal computers, tablets, wearables, and accessories worldwide."
-  },
-  {
-    id: "tesla-search", 
-    name: "Tesla Inc.",
-    category: "Automotive",
-    location: "Austin, TX",
-    employeeCount: 127855,
-    revenue: "$96.8B",
-    riskScore: 55,
-    description: "Tesla designs, develops, manufactures, leases, and sells electric vehicles, and energy generation and storage systems."
-  },
-  {
-    id: "microsoft-search",
-    name: "Microsoft Corporation", 
-    category: "Technology",
-    location: "Redmond, WA",
-    employeeCount: 221000,
-    revenue: "$211.9B",
-    riskScore: 18,
-    description: "Microsoft Corporation develops and supports software, services, devices and solutions worldwide."
-  },
-  {
-    id: "amazon-search",
-    name: "Amazon.com Inc.",
-    category: "E-commerce",
-    location: "Seattle, WA", 
-    employeeCount: 1541000,
-    revenue: "$574.8B",
-    riskScore: 32,
-    description: "Amazon.com, Inc. engages in the retail sale of consumer products and subscriptions through online and physical stores."
-  }
-];
 
 export default function SearchResults() {
   const location = useLocation();
   const searchParams = new URLSearchParams(location.search);
   const query = searchParams.get('q') || '';
 
-  // Filter results based on search query
-  const filteredResults = mockSearchResults.filter(company =>
-    company.name.toLowerCase().includes(query.toLowerCase()) ||
-    company.category.toLowerCase().includes(query.toLowerCase()) ||
-    company.description.toLowerCase().includes(query.toLowerCase())
-  );
+  const [companyNames, setCompanyNames] = useState<string[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!query) {
+      setCompanyNames([]);
+      return;
+    }
+    setLoading(true);
+    setError("");
+    fetch("https://guptayatharth1.app.n8n.cloud/webhook/query", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ query })
+    })
+      .then(res => {
+        if (!res.ok) throw new Error("API error");
+        console.log(res.json)
+        return res.json();
+      })
+      .then(data => {
+        setCompanyNames(Array.isArray(data) ? data : []);
+      })
+      .catch(() => setError("Failed to fetch results."))
+      .finally(() => setLoading(false));
+  }, [query]);
 
   return (
     <div className="space-y-6">
@@ -69,23 +48,25 @@ export default function SearchResults() {
             Search Results
           </CardTitle>
           <div className="text-muted-foreground">
-            {filteredResults.length} companies found for "{query}"
+            {loading ? "Loading..." : `${companyNames.length} companies found for "${query}"`}
           </div>
         </CardHeader>
       </Card>
 
       {/* Results */}
-      {filteredResults.length > 0 ? (
+      {error ? (
+        <Card><CardContent>{error}</CardContent></Card>
+      ) : companyNames.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredResults.map((company) => (
-            <CompanyCard
-              key={company.id}
-              company={company}
-              showAnalyzeButton={true}
-            />
+          {companyNames.map((name) => (
+            <Card key={name}>
+              <CardContent className="flex items-center justify-center py-8">
+                <span className="text-lg font-semibold">{name}</span>
+              </CardContent>
+            </Card>
           ))}
         </div>
-      ) : (
+      ) : !loading ? (
         <Card>
           <CardContent className="flex flex-col items-center justify-center py-12">
             <Building2 className="h-12 w-12 text-muted-foreground mb-4" />
@@ -95,7 +76,7 @@ export default function SearchResults() {
             </p>
           </CardContent>
         </Card>
-      )}
+      ) : null}
     </div>
   );
 }
